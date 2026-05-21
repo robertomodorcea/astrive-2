@@ -713,6 +713,26 @@
   pointer-events: none;
 }
 
+.canvas-element.is-container > .canvas-element-content {
+  pointer-events: auto;
+  flex: 1;
+  min-width: 0;
+}
+
+.canvas-el-column-slot.slot-drop-active {
+  border-color: var(--purple-accent) !important;
+  background: var(--purple-surface) !important;
+  color: var(--purple-glow) !important;
+}
+
+.canvas-container-children {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  min-height: 32px;
+}
+
 /* Canvas element renderers */
 .canvas-el-heading {
   font-weight: 600;

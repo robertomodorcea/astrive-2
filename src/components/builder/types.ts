@@ -38,6 +38,7 @@ export interface BuilderElement {
   type: ElementType;
   label: string;
   props: Record<string, unknown>;
+  children?: BuilderElement[];
 }
 
 export interface PropertyField {

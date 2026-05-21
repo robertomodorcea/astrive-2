@@ -3,16 +3,18 @@ import type { BuilderElement, BuilderState, ChatMessage, ElementType } from './t
 import { getElementDefinition } from './element-registry';
 
 type BuilderAction =
-  | { type: 'ADD_ELEMENT'; payload: { elementType: ElementType; index?: number } }
+  | { type: 'ADD_ELEMENT'; payload: { elementType: ElementType; parentId?: string; index?: number } }
   | { type: 'REMOVE_ELEMENT'; payload: { id: string } }
   | { type: 'SELECT_ELEMENT'; payload: { id: string | null } }
   | { type: 'UPDATE_ELEMENT_PROPS'; payload: { id: string; props: Record<string, unknown> } }
-  | { type: 'REORDER_ELEMENTS'; payload: { oldIndex: number; newIndex: number } }
+  | { type: 'REORDER_ELEMENTS'; payload: { parentId: string | null; oldIndex: number; newIndex: number } }
   | { type: 'ADD_CHAT_MESSAGE'; payload: ChatMessage }
   | { type: 'SET_BREAKPOINT'; payload: 'desktop' | 'tablet' | 'mobile' }
   | { type: 'DUPLICATE_ELEMENT'; payload: { id: string } }
   | { type: 'MOVE_ELEMENT_UP'; payload: { id: string } }
-  | { type: 'MOVE_ELEMENT_DOWN'; payload: { id: string } };
+  | { type: 'MOVE_ELEMENT_DOWN'; payload: { id: string } }
+  | { type: 'PROMOTE_ELEMENT'; payload: { id: string } }
+  | { type: 'MOVE_ELEMENT_TO'; payload: { id: string; parentId: string | null; index: number } };
 
 let nextId = 1;
 function generateId(): string {
@@ -33,6 +35,62 @@ const initialState: BuilderState = {
   activeBreakpoint: 'desktop',
 };
 
+function findElementById(elements: BuilderElement[], id: string): BuilderElement | undefined {
+  for (const el of elements) {
+    if (el.id === id) return el;
+    if (el.children) {
+      const found = findElementById(el.children, id);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
+function findParentAndIndex(
+  elements: BuilderElement[],
+  id: string,
+): { parent: BuilderElement[]; index: number; parentElement: BuilderElement | null } | null {
+  for (let i = 0; i < elements.length; i++) {
+    if (elements[i].id === id) {
+      return { parent: elements, index: i, parentElement: null };
+    }
+    if (elements[i].children) {
+      const result = findParentAndIndex(elements[i].children!, id);
+      if (result) {
+        return result.parentElement !== null
+          ? result
+          : { parent: elements[i].children!, index: result.index, parentElement: elements[i] };
+      }
+    }
+  }
+  return null;
+}
+
+function mapElementTree(
+  elements: BuilderElement[],
+  id: string,
+  updater: (el: BuilderElement) => BuilderElement,
+): BuilderElement[] {
+  return elements.map((el) => {
+    if (el.id === id) return updater(el);
+    if (el.children) {
+      return { ...el, children: mapElementTree(el.children, id, updater) };
+    }
+    return el;
+  });
+}
+
+function removeFromTree(elements: BuilderElement[], id: string): BuilderElement[] {
+  return elements
+    .filter((el) => el.id !== id)
+    .map((el) => {
+      if (el.children) {
+        return { ...el, children: removeFromTree(el.children, id) };
+      }
+      return el;
+    });
+}
+
 function builderReducer(state: BuilderState, action: BuilderAction): BuilderState {
   switch (action.type) {
     case 'ADD_ELEMENT': {
@@ -44,6 +102,20 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
         label: definition.label,
         props: { ...definition.defaultProps },
       };
+
+      if (action.payload.parentId) {
+        const elements = mapElementTree(state.elements, action.payload.parentId, (parent) => {
+          const children = [...(parent.children || [])];
+          if (action.payload.index !== undefined) {
+            children.splice(action.payload.index, 0, newElement);
+          } else {
+            children.push(newElement);
+          }
+          return { ...parent, children };
+        });
+        return { ...state, elements, selectedElementId: newElement.id };
+      }
+
       const elements = [...state.elements];
       if (action.payload.index !== undefined) {
         elements.splice(action.payload.index, 0, newElement);
@@ -52,64 +124,203 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
       }
       return { ...state, elements, selectedElementId: newElement.id };
     }
+
     case 'REMOVE_ELEMENT': {
+      const elements = removeFromTree(state.elements, action.payload.id);
       return {
         ...state,
-        elements: state.elements.filter((el) => el.id !== action.payload.id),
-        selectedElementId: state.selectedElementId === action.payload.id ? null : state.selectedElementId,
+        elements,
+        selectedElementId:
+          state.selectedElementId === action.payload.id ? null : state.selectedElementId,
       };
     }
-    case 'SELECT_ELEMENT': {
+
+    case 'SELECT_ELEMENT':
       return { ...state, selectedElementId: action.payload.id };
-    }
+
     case 'UPDATE_ELEMENT_PROPS': {
-      return {
-        ...state,
-        elements: state.elements.map((el) =>
-          el.id === action.payload.id ? { ...el, props: { ...el.props, ...action.payload.props } } : el
-        ),
-      };
+      const elements = mapElementTree(state.elements, action.payload.id, (el) => ({
+        ...el,
+        props: { ...el.props, ...action.payload.props },
+      }));
+      return { ...state, elements };
     }
+
     case 'REORDER_ELEMENTS': {
-      const { oldIndex, newIndex } = action.payload;
+      const { parentId, oldIndex, newIndex } = action.payload;
+
+      if (parentId) {
+        const elements = mapElementTree(state.elements, parentId, (parent) => {
+          const children = [...(parent.children || [])];
+          const [removed] = children.splice(oldIndex, 1);
+          children.splice(newIndex, 0, removed);
+          return { ...parent, children };
+        });
+        return { ...state, elements };
+      }
+
       const elements = [...state.elements];
       const [removed] = elements.splice(oldIndex, 1);
       elements.splice(newIndex, 0, removed);
       return { ...state, elements };
     }
+
     case 'DUPLICATE_ELEMENT': {
-      const sourceIndex = state.elements.findIndex((el) => el.id === action.payload.id);
-      if (sourceIndex === -1) return state;
-      const source = state.elements[sourceIndex];
+      const source = findElementById(state.elements, action.payload.id);
+      if (!source) return state;
+
       const duplicate: BuilderElement = {
         ...source,
         id: generateId(),
         props: { ...source.props },
+        children: source.children
+          ? source.children.map((child) => ({ ...child, id: generateId() }))
+          : undefined,
       };
-      const elements = [...state.elements];
-      elements.splice(sourceIndex + 1, 0, duplicate);
-      return { ...state, elements, selectedElementId: duplicate.id };
+
+      const location = findParentAndIndex(state.elements, action.payload.id);
+      if (!location) return state;
+
+      const parentArray = location.parent;
+      const insertIndex = location.index + 1;
+      const newParentArray = [...parentArray];
+      newParentArray.splice(insertIndex, 0, duplicate);
+
+      if (location.parentElement) {
+        const elements = mapElementTree(state.elements, location.parentElement.id, (parent) => ({
+          ...parent,
+          children: newParentArray,
+        }));
+        return { ...state, elements, selectedElementId: duplicate.id };
+      }
+
+      return { ...state, elements: newParentArray, selectedElementId: duplicate.id };
     }
+
     case 'MOVE_ELEMENT_UP': {
-      const index = state.elements.findIndex((el) => el.id === action.payload.id);
-      if (index <= 0) return state;
-      const elements = [...state.elements];
-      [elements[index - 1], elements[index]] = [elements[index], elements[index - 1]];
-      return { ...state, elements };
+      const location = findParentAndIndex(state.elements, action.payload.id);
+      if (!location || location.index <= 0) return state;
+
+      const parentArray = location.parent;
+      const newArray = [...parentArray];
+      [newArray[location.index - 1], newArray[location.index]] = [
+        newArray[location.index],
+        newArray[location.index - 1],
+      ];
+
+      if (location.parentElement) {
+        const elements = mapElementTree(state.elements, location.parentElement.id, (parent) => ({
+          ...parent,
+          children: newArray,
+        }));
+        return { ...state, elements };
+      }
+
+      return { ...state, elements: newArray };
     }
+
     case 'MOVE_ELEMENT_DOWN': {
-      const index = state.elements.findIndex((el) => el.id === action.payload.id);
-      if (index === -1 || index >= state.elements.length - 1) return state;
-      const elements = [...state.elements];
-      [elements[index], elements[index + 1]] = [elements[index + 1], elements[index]];
-      return { ...state, elements };
+      const location = findParentAndIndex(state.elements, action.payload.id);
+      if (!location || location.index >= location.parent.length - 1) return state;
+
+      const parentArray = location.parent;
+      const newArray = [...parentArray];
+      [newArray[location.index], newArray[location.index + 1]] = [
+        newArray[location.index + 1],
+        newArray[location.index],
+      ];
+
+      if (location.parentElement) {
+        const elements = mapElementTree(state.elements, location.parentElement.id, (parent) => ({
+          ...parent,
+          children: newArray,
+        }));
+        return { ...state, elements };
+      }
+
+      return { ...state, elements: newArray };
     }
-    case 'ADD_CHAT_MESSAGE': {
+
+    case 'PROMOTE_ELEMENT': {
+      const location = findParentAndIndex(state.elements, action.payload.id);
+      if (!location || !location.parentElement) return state;
+
+      const childArray = [...location.parent];
+      const [element] = childArray.splice(location.index, 1);
+
+      // Find grandparent to insert after the parent
+      const grandParentLoc = findParentAndIndex(state.elements, location.parentElement.id);
+      if (!grandParentLoc) return state;
+
+      const grandParentArray = grandParentLoc.parent;
+      const parentIndex = grandParentLoc.index;
+      const newGrandParentArray = [...grandParentArray];
+
+      // Replace parent element with updated children (minus the promoted one)
+      const parentWithoutChild = {
+        ...location.parentElement,
+        children: childArray.length > 0 ? childArray : undefined,
+      };
+      newGrandParentArray[parentIndex] = parentWithoutChild;
+
+      // Insert promoted element after the parent
+      newGrandParentArray.splice(parentIndex + 1, 0, element);
+
+      if (grandParentLoc.parentElement) {
+        const elements = mapElementTree(
+          state.elements,
+          grandParentLoc.parentElement.id,
+          (parent) => ({ ...parent, children: newGrandParentArray }),
+        );
+        return { ...state, elements, selectedElementId: element.id };
+      }
+
+      return { ...state, elements: newGrandParentArray, selectedElementId: element.id };
+    }
+
+    case 'MOVE_ELEMENT_TO': {
+      const { id, parentId, index } = action.payload;
+
+      // Remove element from current position
+      const currentLoc = findParentAndIndex(state.elements, id);
+      if (!currentLoc) return state;
+
+      const currentParentArray = [...currentLoc.parent];
+      const [element] = currentParentArray.splice(currentLoc.index, 1);
+
+      // Build state after removal
+      let newElements: BuilderElement[];
+      if (currentLoc.parentElement) {
+        newElements = mapElementTree(state.elements, currentLoc.parentElement.id, (parent) => ({
+          ...parent,
+          children: currentParentArray.length > 0 ? currentParentArray : undefined,
+        }));
+      } else {
+        newElements = currentParentArray;
+      }
+
+      // Insert into target
+      if (parentId) {
+        newElements = mapElementTree(newElements, parentId, (parent) => {
+          const children = [...(parent.children || [])];
+          children.splice(index, 0, element);
+          return { ...parent, children };
+        });
+      } else {
+        const targetArray = [...newElements];
+        targetArray.splice(index, 0, element);
+        newElements = targetArray;
+      }
+
+      return { ...state, elements: newElements, selectedElementId: element.id };
+    }
+
+    case 'ADD_CHAT_MESSAGE':
       return { ...state, chatMessages: [...state.chatMessages, action.payload] };
-    }
-    case 'SET_BREAKPOINT': {
+
+    case 'SET_BREAKPOINT':
       return { ...state, activeBreakpoint: action.payload };
-    }
+
     default:
       return state;
   }
@@ -118,17 +329,20 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
 interface BuilderContextType {
   state: BuilderState;
   dispatch: React.Dispatch<BuilderAction>;
-  addElement: (type: ElementType, index?: number) => void;
+  addElement: (type: ElementType, parentId?: string, index?: number) => void;
   removeElement: (id: string) => void;
   selectElement: (id: string | null) => void;
   updateElementProps: (id: string, props: Record<string, unknown>) => void;
-  reorderElements: (oldIndex: number, newIndex: number) => void;
+  reorderElements: (parentId: string | null, oldIndex: number, newIndex: number) => void;
   duplicateElement: (id: string) => void;
   moveElementUp: (id: string) => void;
   moveElementDown: (id: string) => void;
+  promoteElement: (id: string) => void;
+  moveElementTo: (id: string, parentId: string | null, index: number) => void;
   setBreakpoint: (breakpoint: 'desktop' | 'tablet' | 'mobile') => void;
   sendChatMessage: (content: string) => void;
   getSelectedElement: () => BuilderElement | undefined;
+  getElementParent: (id: string) => BuilderElement | null;
 }
 
 const BuilderContext = createContext<BuilderContextType | null>(null);
@@ -136,9 +350,15 @@ const BuilderContext = createContext<BuilderContextType | null>(null);
 export function BuilderProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(builderReducer, initialState);
 
-  const addElement = useCallback((type: ElementType, index?: number) => {
-    dispatch({ type: 'ADD_ELEMENT', payload: { elementType: type, index } });
-  }, []);
+  const addElement = useCallback(
+    (type: ElementType, parentId?: string, index?: number) => {
+      dispatch({
+        type: 'ADD_ELEMENT',
+        payload: { elementType: type, parentId, index },
+      });
+    },
+    [],
+  );
 
   const removeElement = useCallback((id: string) => {
     dispatch({ type: 'REMOVE_ELEMENT', payload: { id } });
@@ -152,9 +372,15 @@ export function BuilderProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'UPDATE_ELEMENT_PROPS', payload: { id, props } });
   }, []);
 
-  const reorderElements = useCallback((oldIndex: number, newIndex: number) => {
-    dispatch({ type: 'REORDER_ELEMENTS', payload: { oldIndex, newIndex } });
-  }, []);
+  const reorderElements = useCallback(
+    (parentId: string | null, oldIndex: number, newIndex: number) => {
+      dispatch({
+        type: 'REORDER_ELEMENTS',
+        payload: { parentId, oldIndex, newIndex },
+      });
+    },
+    [],
+  );
 
   const duplicateElement = useCallback((id: string) => {
     dispatch({ type: 'DUPLICATE_ELEMENT', payload: { id } });
@@ -167,6 +393,17 @@ export function BuilderProvider({ children }: { children: ReactNode }) {
   const moveElementDown = useCallback((id: string) => {
     dispatch({ type: 'MOVE_ELEMENT_DOWN', payload: { id } });
   }, []);
+
+  const promoteElement = useCallback((id: string) => {
+    dispatch({ type: 'PROMOTE_ELEMENT', payload: { id } });
+  }, []);
+
+  const moveElementTo = useCallback(
+    (id: string, parentId: string | null, index: number) => {
+      dispatch({ type: 'MOVE_ELEMENT_TO', payload: { id, parentId, index } });
+    },
+    [],
+  );
 
   const setBreakpoint = useCallback((breakpoint: 'desktop' | 'tablet' | 'mobile') => {
     dispatch({ type: 'SET_BREAKPOINT', payload: breakpoint });
@@ -181,7 +418,6 @@ export function BuilderProvider({ children }: { children: ReactNode }) {
     };
     dispatch({ type: 'ADD_CHAT_MESSAGE', payload: userMessage });
 
-    // Simulate AI response
     setTimeout(() => {
       const aiMessage: ChatMessage = {
         id: `msg_${Date.now()}_ai`,
@@ -195,8 +431,16 @@ export function BuilderProvider({ children }: { children: ReactNode }) {
 
   const getSelectedElement = useCallback(() => {
     if (!state.selectedElementId) return undefined;
-    return state.elements.find((el) => el.id === state.selectedElementId);
+    return findElementById(state.elements, state.selectedElementId);
   }, [state.selectedElementId, state.elements]);
+
+  const getElementParent = useCallback(
+    (id: string): BuilderElement | null => {
+      const loc = findParentAndIndex(state.elements, id);
+      return loc?.parentElement || null;
+    },
+    [state.elements],
+  );
 
   return (
     <BuilderContext.Provider
@@ -211,9 +455,12 @@ export function BuilderProvider({ children }: { children: ReactNode }) {
         duplicateElement,
         moveElementUp,
         moveElementDown,
+        promoteElement,
+        moveElementTo,
         setBreakpoint,
         sendChatMessage,
         getSelectedElement,
+        getElementParent,
       }}
     >
       {children}
@@ -230,16 +477,16 @@ export function useBuilder() {
 function getAIResponse(userMessage: string): string {
   const lower = userMessage.toLowerCase();
   if (lower.includes('form') || lower.includes('contact')) {
-    return "Great idea! I'd suggest starting with a Heading, then adding Input fields for Name and Email, a Text Area for the message, and finishing with a Submit button. You can drag these elements from the left panel, or I can help you plan the structure further.";
+    return 'Great idea! I\'d suggest starting with a Heading, then adding Input fields for Name and Email, a Text Area for the message, and finishing with a Submit button. You can drag these elements from the left panel, or I can help you plan the structure further.';
   }
   if (lower.includes('button')) {
-    return "You can add buttons from the 'Buttons' section in the left panel. There are three types: Button (general purpose), Submit (for forms), and Reset (to clear form data). Each can be customized with different variants and sizes in the properties panel.";
+    return 'You can add buttons from the \'Buttons\' section in the left panel. There are three types: Button (general purpose), Submit (for forms), and Reset (to clear form data). Each can be customized with different variants and sizes in the properties panel.';
   }
   if (lower.includes('layout') || lower.includes('column')) {
     return 'For layout, try using the Container element to wrap your content, and Columns to create multi-column layouts. You can also use Spacer and Divider elements to control spacing between sections.';
   }
   if (lower.includes('hello') || lower.includes('hi') || lower.includes('hey')) {
-    return "Hey there! 👋 I'm here to help you build your page. What would you like to create? You can describe a layout, form, or any component and I'll guide you through building it.";
+    return 'Hey there! I\'m here to help you build your page. What would you like to create? You can describe a layout, form, or any component and I\'ll guide you through building it.';
   }
-  return "I can help you with that! Try dragging elements from the left sidebar to the canvas, or describe what you'd like to build and I'll suggest the right components. You can also select any element on the canvas to edit its properties in the right panel.";
+  return 'I can help you with that! Try dragging elements from the left sidebar to the canvas, or describe what you\'d like to build and I\'ll suggest the right components. You can also select any element on the canvas to edit its properties in the right panel.';
 }
