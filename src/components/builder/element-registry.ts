@@ -18,8 +18,25 @@ export const elementCategories: { name: string; elements: ElementDefinition[] }[
         description: 'Multi-column layout',
         icon: 'Columns3',
         category: 'Layout',
-        isNew: true,
         defaultProps: { columns: 2, gap: '16' },
+      },
+      {
+        type: 'grid',
+        label: 'CSS Grid',
+        description: 'Advanced grid layout',
+        icon: 'BoxSelect',
+        category: 'Layout',
+        isNew: true,
+        defaultProps: { columns: 3, gap: '16' },
+      },
+      {
+        type: 'flex',
+        label: 'Flexbox',
+        description: 'Flexible row/column',
+        icon: 'Navigation',
+        category: 'Layout',
+        isNew: true,
+        defaultProps: { direction: 'row', gap: '16', align: 'center', justify: 'space-between' },
       },
       {
         type: 'spacer',
@@ -425,6 +442,40 @@ export function getPropertiesForElement(type: ElementType): PropertySection[] {
           label: 'Style',
           fields: [
             { key: 'color', label: 'Color', type: 'color', section: 'style' },
+          ],
+        },
+        commonAppearance,
+      ];
+    case 'flex':
+      return [
+        {
+          id: 'layout',
+          label: 'Flex Layout',
+          fields: [
+            {
+              key: 'direction',
+              label: 'Direction',
+              type: 'select',
+              section: 'layout',
+              options: [
+                { label: 'Row', value: 'row' },
+                { label: 'Column', value: 'column' },
+              ],
+            },
+            { key: 'gap', label: 'Gap (px)', type: 'number', section: 'layout' },
+          ],
+        },
+        commonAppearance,
+      ];
+    case 'grid':
+    case 'columns':
+      return [
+        {
+          id: 'layout',
+          label: 'Grid Layout',
+          fields: [
+            { key: 'columns', label: 'Columns', type: 'number', section: 'layout' },
+            { key: 'gap', label: 'Gap (px)', type: 'number', section: 'layout' },
           ],
         },
         commonAppearance,

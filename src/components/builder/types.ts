@@ -19,7 +19,9 @@ export type ElementType =
   | 'spacer'
   | 'divider'
   | 'columns'
-  | 'container';
+  | 'container'
+  | 'grid'
+  | 'flex';
 
 export interface ElementDefinition {
   type: ElementType;
@@ -63,6 +65,5 @@ export interface BuilderState {
   elements: BuilderElement[];
   selectedElementId: string | null;
   chatMessages: ChatMessage[];
-  isChatOpen: boolean;
-  pageTitle: string;
+  activeBreakpoint: 'desktop' | 'tablet' | 'mobile';
 }

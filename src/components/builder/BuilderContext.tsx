@@ -9,8 +9,7 @@ type BuilderAction =
   | { type: 'UPDATE_ELEMENT_PROPS'; payload: { id: string; props: Record<string, unknown> } }
   | { type: 'REORDER_ELEMENTS'; payload: { oldIndex: number; newIndex: number } }
   | { type: 'ADD_CHAT_MESSAGE'; payload: ChatMessage }
-  | { type: 'TOGGLE_CHAT' }
-  | { type: 'SET_PAGE_TITLE'; payload: string }
+  | { type: 'SET_BREAKPOINT'; payload: 'desktop' | 'tablet' | 'mobile' }
   | { type: 'DUPLICATE_ELEMENT'; payload: { id: string } }
   | { type: 'MOVE_ELEMENT_UP'; payload: { id: string } }
   | { type: 'MOVE_ELEMENT_DOWN'; payload: { id: string } };
@@ -31,8 +30,7 @@ const initialState: BuilderState = {
       timestamp: new Date(),
     },
   ],
-  isChatOpen: false,
-  pageTitle: 'Untitled Page',
+  activeBreakpoint: 'desktop',
 };
 
 function builderReducer(state: BuilderState, action: BuilderAction): BuilderState {
@@ -109,11 +107,8 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
     case 'ADD_CHAT_MESSAGE': {
       return { ...state, chatMessages: [...state.chatMessages, action.payload] };
     }
-    case 'TOGGLE_CHAT': {
-      return { ...state, isChatOpen: !state.isChatOpen };
-    }
-    case 'SET_PAGE_TITLE': {
-      return { ...state, pageTitle: action.payload };
+    case 'SET_BREAKPOINT': {
+      return { ...state, activeBreakpoint: action.payload };
     }
     default:
       return state;
@@ -131,7 +126,7 @@ interface BuilderContextType {
   duplicateElement: (id: string) => void;
   moveElementUp: (id: string) => void;
   moveElementDown: (id: string) => void;
-  toggleChat: () => void;
+  setBreakpoint: (breakpoint: 'desktop' | 'tablet' | 'mobile') => void;
   sendChatMessage: (content: string) => void;
   getSelectedElement: () => BuilderElement | undefined;
 }
@@ -173,8 +168,8 @@ export function BuilderProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'MOVE_ELEMENT_DOWN', payload: { id } });
   }, []);
 
-  const toggleChat = useCallback(() => {
-    dispatch({ type: 'TOGGLE_CHAT' });
+  const setBreakpoint = useCallback((breakpoint: 'desktop' | 'tablet' | 'mobile') => {
+    dispatch({ type: 'SET_BREAKPOINT', payload: breakpoint });
   }, []);
 
   const sendChatMessage = useCallback((content: string) => {
@@ -216,7 +211,7 @@ export function BuilderProvider({ children }: { children: ReactNode }) {
         duplicateElement,
         moveElementUp,
         moveElementDown,
-        toggleChat,
+        setBreakpoint,
         sendChatMessage,
         getSelectedElement,
       }}

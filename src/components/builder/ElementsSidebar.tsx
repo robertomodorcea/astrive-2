@@ -27,8 +27,6 @@ import {
   MousePointerClick,
   Send,
   RotateCcw,
-  GripVertical,
-  User,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -39,10 +37,9 @@ const iconMap: Record<string, LucideIcon> = {
   Send, RotateCcw,
 };
 
-function DraggableElement({ type, label, description, icon, isNew }: {
+function DraggableElement({ type, label, icon, isNew }: {
   type: ElementType;
   label: string;
-  description: string;
   icon: string;
   isNew?: boolean;
 }) {
@@ -71,25 +68,23 @@ function DraggableElement({ type, label, description, icon, isNew }: {
       tabIndex={0}
     >
       <div className="sidebar-element-icon">
-        <Icon className="h-4 w-4" />
+        <Icon className="h-5 w-5" />
       </div>
       <div className="sidebar-element-info">
         <span className="sidebar-element-label">{label}</span>
-        <span className="sidebar-element-desc">{description}</span>
       </div>
       {isNew && (
         <Badge variant="secondary" className="sidebar-element-badge">
           New
         </Badge>
       )}
-      <GripVertical className="sidebar-element-grip h-3.5 w-3.5" />
     </div>
   );
 }
 
 export function ElementsSidebar() {
   return (
-    <aside className="elements-sidebar">
+    <div className="elements-sidebar-content">
       <ScrollArea className="h-full">
         <div className="sidebar-content">
           {elementCategories.map((category) => (
@@ -101,7 +96,6 @@ export function ElementsSidebar() {
                     key={element.type}
                     type={element.type}
                     label={element.label}
-                    description={element.description}
                     icon={element.icon}
                     isNew={element.isNew}
                   />
@@ -110,17 +104,7 @@ export function ElementsSidebar() {
             </div>
           ))}
         </div>
-
-        <div className="sidebar-user">
-          <div className="sidebar-user-avatar">
-            <User className="h-4 w-4" />
-          </div>
-          <div className="sidebar-user-info">
-            <span className="sidebar-user-name">Builder User</span>
-            <span className="sidebar-user-email">user@astrive.io</span>
-          </div>
-        </div>
       </ScrollArea>
-    </aside>
+    </div>
   );
 }

@@ -148,14 +148,22 @@ function CanvasElementRenderer({ element }: { element: BuilderElement }) {
           <span className="canvas-el-container-label">Container</span>
         </div>
       );
+    case 'grid':
     case 'columns':
       return (
-        <div className="canvas-el-columns" style={{ gridTemplateColumns: `repeat(${props.columns || 2}, 1fr)` }}>
+        <div className="canvas-el-columns" style={{ gridTemplateColumns: `repeat(${props.columns || 2}, 1fr)`, gap: `${props.gap || 16}px` }}>
           {Array.from({ length: (props.columns as number) || 2 }).map((_, i) => (
             <div key={i} className="canvas-el-column-slot">
-              Column {i + 1}
+              Slot {i + 1}
             </div>
           ))}
+        </div>
+      );
+    case 'flex':
+      return (
+        <div className="canvas-el-flex" style={{ display: 'flex', flexDirection: props.direction as 'row' | 'column' || 'row', gap: `${props.gap || 16}px`, alignItems: 'center', justifyContent: 'space-between', padding: '16px', border: '1px dashed var(--border)', borderRadius: '8px' }}>
+          <div className="canvas-el-column-slot">Flex Item 1</div>
+          <div className="canvas-el-column-slot">Flex Item 2</div>
         </div>
       );
     default:
@@ -246,13 +254,17 @@ export function Canvas() {
   const { state, selectElement } = useBuilder();
   const { setNodeRef, isOver } = useDroppable({ id: 'canvas-drop-zone' });
 
+  const canvasWidth = state.activeBreakpoint === 'desktop' ? '100%' :
+                      state.activeBreakpoint === 'tablet' ? '768px' : '375px';
+
   return (
     <main className="builder-canvas" onClick={() => selectElement(null)}>
       <ScrollArea className="h-full">
-        <div className="canvas-viewport">
+        <div className="canvas-viewport" style={{ transition: 'all 0.3s ease', padding: '24px', display: 'flex', justifyContent: 'center' }}>
           <div
             ref={setNodeRef}
             className={`canvas-form-area ${isOver ? 'drop-active' : ''} ${state.elements.length === 0 ? 'empty' : ''}`}
+            style={{ width: canvasWidth, maxWidth: '100%', transition: 'width 0.3s ease', margin: '0 auto', background: 'var(--card)', borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}
           >
             {state.elements.length === 0 ? (
               <div className="canvas-empty-state">

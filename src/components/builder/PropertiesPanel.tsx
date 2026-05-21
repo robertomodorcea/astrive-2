@@ -22,7 +22,6 @@ import {
   AlignRight,
   AlignJustify,
   RotateCcw,
-  Layers,
 } from 'lucide-react';
 import type { PropertyField } from './types';
 
@@ -142,24 +141,14 @@ export function PropertiesPanel() {
   const selectedElement = getSelectedElement();
 
   if (!selectedElement) {
-    return (
-      <aside className="properties-panel">
-        <div className="properties-empty">
-          <div className="properties-empty-icon">
-            <Layers className="h-8 w-8" />
-          </div>
-          <h4>No Element Selected</h4>
-          <p>Select an element on the canvas to edit its properties.</p>
-        </div>
-      </aside>
-    );
+    return null;
   }
 
   const definition = getElementDefinition(selectedElement.type);
   const sections = getPropertiesForElement(selectedElement.type);
 
   return (
-    <aside className="properties-panel">
+    <div className="properties-panel-content">
       <div className="properties-header">
         <span className="properties-header-type">{definition?.label || selectedElement.type}</span>
         <button className="properties-header-reset" title="Reset properties">
@@ -196,6 +185,6 @@ export function PropertiesPanel() {
           ))}
         </Accordion>
       </ScrollArea>
-    </aside>
+    </div>
   );
 }

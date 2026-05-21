@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import {
   DndContext,
   useSensor,
@@ -14,9 +14,10 @@ import { Canvas } from './Canvas';
 import { PropertiesPanel } from './PropertiesPanel';
 import { AIChatPanel } from './AIChatPanel';
 import type { ElementType } from './types';
+import { ChevronLeft } from 'lucide-react';
 
 export function BuilderLayout() {
-  const { addElement, reorderElements, state, toggleChat } = useBuilder();
+  const { addElement, reorderElements, state, selectElement } = useBuilder();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -51,18 +52,6 @@ export function BuilderLayout() {
     [addElement, reorderElements, state.elements]
   );
 
-  // Keyboard shortcut: Cmd+K to toggle AI chat
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        toggleChat();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggleChat]);
-
   return (
     <DndContext
       sensors={sensors}
@@ -70,12 +59,27 @@ export function BuilderLayout() {
       onDragEnd={handleDragEnd}
     >
       <div className="builder-layout">
-        <TopBar />
-        <div className="builder-body">
-          <ElementsSidebar />
+        <aside className="left-sidebar">
+          {state.selectedElementId ? (
+            <div className="sidebar-panel-container">
+              <div className="sidebar-panel-header">
+                <button className="back-to-elements-btn" onClick={() => selectElement(null)}>
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Back to Elements
+                </button>
+              </div>
+              <PropertiesPanel />
+            </div>
+          ) : (
+            <ElementsSidebar />
+          )}
+        </aside>
+
+        <div className="center-column">
+          <TopBar />
           <Canvas />
-          <PropertiesPanel />
         </div>
+
         <AIChatPanel />
       </div>
     </DndContext>
