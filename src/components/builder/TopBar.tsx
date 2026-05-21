@@ -24,17 +24,6 @@ export function TopBar() {
   return (
     <header className="topbar">
       <div className="topbar-left">
-        <div className="topbar-logo">
-          <div className="topbar-logo-icon">
-            <Zap className="h-4 w-4 text-purple-400" />
-          </div>
-          <span className="topbar-logo-text">
-            astrive <span className="topbar-logo-tag">Builder</span>
-          </span>
-        </div>
-      </div>
-
-      <div className="topbar-center">
         <div className="topbar-breakpoints">
           {breakpoints.map((bp) => (
             <Tooltip key={bp.key}>
@@ -51,7 +40,6 @@ export function TopBar() {
           ))}
         </div>
       </div>
-
       <div className="topbar-right">
         <div className="topbar-toolbar">
           <Tooltip>
@@ -78,10 +66,6 @@ export function TopBar() {
           <Button variant="outline" size="sm" className="topbar-btn-preview">
             <Eye className="h-4 w-4 mr-1.5" />
             Preview
-          </Button>
-          <Button size="sm" className="topbar-btn-export">
-            <Download className="h-4 w-4 mr-1.5" />
-            Export
           </Button>
         </div>
       </div>

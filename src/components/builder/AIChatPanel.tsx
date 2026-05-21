@@ -106,9 +106,6 @@ export function AIChatPanel() {
             <Send className="h-4 w-4" />
           </Button>
         </div>
-        <div className="ai-chat-hint">
-          Press <kbd>Enter</kbd> to send, <kbd>Shift+Enter</kbd> for new line
-        </div>
       </div>
     </aside>
   );

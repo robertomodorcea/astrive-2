@@ -27,7 +27,7 @@ export const elementCategories: { name: string; elements: ElementDefinition[] }[
         icon: 'BoxSelect',
         category: 'Layout',
         isNew: true,
-        defaultProps: { columns: 3, gap: '16' },
+        defaultProps: { columns: 3, rows: 2, gap: '16' },
       },
       {
         type: 'flex',
@@ -242,6 +242,16 @@ export function getPropertiesForElement(type: ElementType): PropertySection[] {
     ],
   };
 
+  const commonHtmlAttributes: PropertySection = {
+    id: 'htmlAttributes',
+    label: 'HTML Attributes',
+    fields: [
+      { key: 'htmlId', label: 'ID', type: 'text', section: 'htmlAttributes' },
+      { key: 'className', label: 'Class', type: 'text', section: 'htmlAttributes' },
+      { key: 'htmlName', label: 'Name', type: 'text', section: 'htmlAttributes' },
+    ],
+  };
+
   switch (type) {
     case 'input':
     case 'email':
@@ -277,6 +287,7 @@ export function getPropertiesForElement(type: ElementType): PropertySection[] {
           ],
         },
         commonAppearance,
+        commonHtmlAttributes,
       ];
     case 'textarea':
       return [
@@ -298,6 +309,7 @@ export function getPropertiesForElement(type: ElementType): PropertySection[] {
           ],
         },
         commonAppearance,
+        commonHtmlAttributes,
       ];
     case 'select':
       return [
@@ -318,6 +330,7 @@ export function getPropertiesForElement(type: ElementType): PropertySection[] {
           ],
         },
         commonAppearance,
+        commonHtmlAttributes,
       ];
     case 'heading':
       return [
@@ -344,6 +357,7 @@ export function getPropertiesForElement(type: ElementType): PropertySection[] {
           ],
         },
         commonAppearance,
+        commonHtmlAttributes,
       ];
     case 'paragraph':
       return [
@@ -356,6 +370,7 @@ export function getPropertiesForElement(type: ElementType): PropertySection[] {
           ],
         },
         commonAppearance,
+        commonHtmlAttributes,
       ];
     case 'button':
     case 'submit':
@@ -393,6 +408,7 @@ export function getPropertiesForElement(type: ElementType): PropertySection[] {
           ],
         },
         commonAppearance,
+        commonHtmlAttributes,
       ];
     case 'checkbox':
     case 'switch':
@@ -412,6 +428,7 @@ export function getPropertiesForElement(type: ElementType): PropertySection[] {
           ],
         },
         commonAppearance,
+        commonHtmlAttributes,
       ];
     case 'radio-group':
     case 'checkbox-group':
@@ -424,6 +441,7 @@ export function getPropertiesForElement(type: ElementType): PropertySection[] {
           ],
         },
         commonAppearance,
+        commonHtmlAttributes,
       ];
     case 'spacer':
       return [
@@ -434,6 +452,7 @@ export function getPropertiesForElement(type: ElementType): PropertySection[] {
             { key: 'height', label: 'Height (px)', type: 'number', section: 'spacing' },
           ],
         },
+        commonHtmlAttributes,
       ];
     case 'divider':
       return [
@@ -445,6 +464,7 @@ export function getPropertiesForElement(type: ElementType): PropertySection[] {
           ],
         },
         commonAppearance,
+        commonHtmlAttributes,
       ];
     case 'flex':
       return [
@@ -466,21 +486,36 @@ export function getPropertiesForElement(type: ElementType): PropertySection[] {
           ],
         },
         commonAppearance,
+        commonHtmlAttributes,
       ];
     case 'grid':
-    case 'columns':
       return [
         {
           id: 'layout',
           label: 'Grid Layout',
           fields: [
             { key: 'columns', label: 'Columns', type: 'number', section: 'layout' },
+            { key: 'rows', label: 'Rows', type: 'number', section: 'layout' },
             { key: 'gap', label: 'Gap (px)', type: 'number', section: 'layout' },
           ],
         },
         commonAppearance,
+        commonHtmlAttributes,
+      ];
+    case 'columns':
+      return [
+        {
+          id: 'layout',
+          label: 'Columns Layout',
+          fields: [
+            { key: 'columns', label: 'Columns', type: 'number', section: 'layout' },
+            { key: 'gap', label: 'Gap (px)', type: 'number', section: 'layout' },
+          ],
+        },
+        commonAppearance,
+        commonHtmlAttributes,
       ];
     default:
-      return [commonAppearance];
+      return [commonAppearance, commonHtmlAttributes];
   }
 }

@@ -149,6 +149,22 @@ function CanvasElementRenderer({ element }: { element: BuilderElement }) {
         </div>
       );
     case 'grid':
+      return (
+        <div
+          className="canvas-el-columns"
+          style={{
+            gridTemplateColumns: `repeat(${props.columns || 3}, 1fr)`,
+            gridTemplateRows: `repeat(${props.rows || 2}, 1fr)`,
+            gap: `${props.gap || 16}px`,
+          }}
+        >
+          {Array.from({ length: ((props.columns as number) || 3) * ((props.rows as number) || 2) }).map((_, i) => (
+            <div key={i} className="canvas-el-column-slot">
+              Slot {i + 1}
+            </div>
+          ))}
+        </div>
+      );
     case 'columns':
       return (
         <div className="canvas-el-columns" style={{ gridTemplateColumns: `repeat(${props.columns || 2}, 1fr)`, gap: `${props.gap || 16}px` }}>

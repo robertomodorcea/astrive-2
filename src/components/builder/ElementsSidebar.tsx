@@ -4,7 +4,10 @@ import { useBuilder } from './BuilderContext';
 import { elementCategories } from './element-registry';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { useState, useMemo } from 'react';
 import type { ElementType } from './types';
+import { Search } from 'lucide-react';
 import {
   Square,
   Columns3,
@@ -27,6 +30,7 @@ import {
   MousePointerClick,
   Send,
   RotateCcw,
+  GripVertical,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -37,9 +41,10 @@ const iconMap: Record<string, LucideIcon> = {
   Send, RotateCcw,
 };
 
-function DraggableElement({ type, label, icon, isNew }: {
+function DraggableElement({ type, label, description, icon, isNew }: {
   type: ElementType;
   label: string;
+  description: string;
   icon: string;
   isNew?: boolean;
 }) {
@@ -68,26 +73,54 @@ function DraggableElement({ type, label, icon, isNew }: {
       tabIndex={0}
     >
       <div className="sidebar-element-icon">
-        <Icon className="h-5 w-5" />
+        <Icon className="h-4 w-4" />
       </div>
       <div className="sidebar-element-info">
         <span className="sidebar-element-label">{label}</span>
+        <span className="sidebar-element-desc">{description}</span>
       </div>
       {isNew && (
         <Badge variant="secondary" className="sidebar-element-badge">
           New
         </Badge>
       )}
+      <GripVertical className="sidebar-element-grip h-3.5 w-3.5" />
     </div>
   );
 }
 
 export function ElementsSidebar() {
+  const [search, setSearch] = useState('');
+
+  const filteredCategories = useMemo(() => {
+    if (!search.trim()) return elementCategories;
+    const q = search.toLowerCase();
+    return elementCategories
+      .map((cat) => ({
+        ...cat,
+        elements: cat.elements.filter(
+          (el) =>
+            el.label.toLowerCase().includes(q) ||
+            el.description.toLowerCase().includes(q)
+        ),
+      }))
+      .filter((cat) => cat.elements.length > 0);
+  }, [search]);
+
   return (
     <div className="elements-sidebar-content">
+      <div className="sidebar-search">
+        <Search className="sidebar-search-icon h-4 w-4" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search elements..."
+          className="sidebar-search-input"
+        />
+      </div>
       <ScrollArea className="h-full">
         <div className="sidebar-content">
-          {elementCategories.map((category) => (
+          {filteredCategories.map((category) => (
             <div key={category.name} className="sidebar-category">
               <h3 className="sidebar-category-title">{category.name}</h3>
               <div className="sidebar-category-elements">
@@ -96,6 +129,7 @@ export function ElementsSidebar() {
                     key={element.type}
                     type={element.type}
                     label={element.label}
+                    description={element.description}
                     icon={element.icon}
                     isNew={element.isNew}
                   />
@@ -103,6 +137,9 @@ export function ElementsSidebar() {
               </div>
             </div>
           ))}
+          {filteredCategories.length === 0 && (
+            <p className="sidebar-no-results">No elements found</p>
+          )}
         </div>
       </ScrollArea>
     </div>
